@@ -1,0 +1,25 @@
+<launch>
+    <node pkg="imu_um6" type="imu_um6_node.py" name="imu_um6_node" output="screen" respawn="true">
+        <param name="port" type="string" value="/dev/ttyUSB0"/>
+    </node>
+
+    <node pkg="tf" type="static_transform_publisher" name="imu_tf" args="0 0 1.03 0 0 0 map imu_link 50" />
+
+    <node pkg="imu_um6" type="imu_pose.py" name="imu_pose" output="screen" respawn="false">
+        <remap from="imu_data" to="imu/data"/>
+    </node>
+
+    <!-- <node pkg="rviz" type="rviz" name="rviz" args="-d $(find imu_um6)/imu.vcg"/> -->
+    
+    <test test-name="verify_imu" pkg="rostest" type="hztest" name="verify_imu_1">
+        <param name="topic" value="imu_pose"/>
+        <param name="hz" value="20"/>
+        <param name="hzerror" value=".5"/>
+        <param name="test_duration" value="1"/>
+        <param name="wait_time" value="2"/>
+    </test>
+        
+
+
+
+</launch>

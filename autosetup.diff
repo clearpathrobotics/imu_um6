@@ -1,0 +1,92 @@
+Index: src/um6/driver.py
+===================================================================
+--- src/um6/driver.py	(revision 42)
++++ src/um6/driver.py	(working copy)
+@@ -27,6 +27,32 @@
+     DATA_ANGULAR_VEL      = 0x04
+     DATA_LINEAR_ACCEL     = 0x08
+ 
++    # configuration registers
++    UM6_COMMUNICATION   = 0x00
++    # configuration data
++    # [0-7] broadcast_rate: 0 (20 Hz)
++    # [8-10] baud rate: 5 (115200)
++    # [11-13] GPS_baud_rate: 6 (N/A)
++    # [14] RESERVED
++    # [15] Satellite status
++    # [16] Satellite summary
++    # [17] GPS velocity 
++    # [18] GPS relative position
++    # [19] GPS position
++    # [20] Temperature
++    # [21] Covariance
++    # [22] Euler angle: 1
++    # [23] Quaternion: 1
++    # [24] Proc. magnetometer: 1
++    # [25] Proc. accelerometer: 1
++    # [26] Proc. gyro: 1
++    # [27] Raw magnetometer
++    # [28] Raw accelerometer
++    # [29] Raw gyro 
++    # [30] Broadcast mode: 1
++    # [31] RESERVED
++    UM6_COMMUNICATION_DATA = 0x47c00500
++
+     # data registers
+     UM6_GYRO_PROC_XY     = 0x5C
+     UM6_GYRO_PROC_Z      = 0x5D
+@@ -45,7 +71,8 @@
+     CMD_BAD_CHECKSUM     = 0xFD # sent by UM6 when it receives corrupted pkt
+ 
+     # set default command callbacks to 'None'
+-    cmd_cb = { CMD_ZERO_GYROS: None,
++    cmd_cb = { UM6_COMMUNICATION: None,
++               CMD_ZERO_GYROS: None,
+                CMD_RESET_EKF: None,
+                CMD_SET_ACCEL_REF: None,
+                CMD_SET_MAG_REF: None,
+@@ -102,6 +129,15 @@
+                 return 1 
+             return 0 
+ 
++    def sendConfig(self, reg, data, callback):
++        """ Sends a 4 byte configuration message """
++        self.cmd_cb[reg] = callback
++        pkt = [0x80,reg]
++        for i in [3,2,1,0]:
++            # Splits input into bytes
++            pkt.append((data & (0xFF << 8*i)) >> 8*i)
++        self.writePacket(pkt)
++
+     def sendCommand(self, cmd, callback):
+         self.cmd_cb[cmd] = callback
+         pkt = [0, cmd]
+@@ -307,7 +343,9 @@
+     um6 = Um6Drv(3, dataMask, data_cb) #3 = COM4 in windows, use '/dev/ttyUSB' style in unix
+ 
+     # send some commands
++    um6.sendConfig(Um6Drv.UM6_COMMUNICATION, Um6Drv.UM6_COMMUNICATION_DATA, cmd_cb)
+     um6.sendCommand(Um6Drv.CMD_ZERO_GYROS, cmd_cb)
++    um6.sendCommand(Um6Drv.CMD_RESET_EKF, cmd_cb)
+     um6.sendCommand(Um6Drv.CMD_SET_MAG_REF, cmd_cb)
+     um6.sendCommand(Um6Drv.CMD_SET_ACCEL_REF, cmd_cb)
+ 
+Index: nodes/imu_um6_node.py
+===================================================================
+--- nodes/imu_um6_node.py	(revision 42)
++++ nodes/imu_um6_node.py	(working copy)
+@@ -58,11 +58,14 @@
+         self.driver.sendCommand(Um6Drv.CMD_RESET_EKF, self.um6_cmd_cb)
+         self.driver.sendCommand(Um6Drv.CMD_SET_MAG_REF, self.um6_cmd_cb)
+         self.driver.sendCommand(Um6Drv.CMD_SET_ACCEL_REF, self.um6_cmd_cb)
++        self.driver.sendConfig(Um6Drv.UM6_COMMUNICATION, Um6Drv.UM6_COMMUNICATION_DATA, self.um6_cmd_cb)
+ 
+         while not rospy.is_shutdown():
+             self.driver.update()
+ 
+     def um6_cmd_cb(self, cmd, result):
++        if (cmd == Um6Drv.UM6_COMMUNICATION):
++            rospy.loginfo("Set quaternion output: %s"%(result))
+         if (cmd == Um6Drv.CMD_RESET_EKF):
+             rospy.loginfo("Reset EKF: %s"%(result))
+         if (cmd == Um6Drv.CMD_ZERO_GYROS):
