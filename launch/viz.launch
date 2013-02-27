@@ -1,0 +1,9 @@
+<launch>
+    <node pkg="tf" type="static_transform_publisher" name="imu_tf" args="0 0 1.03 0 0 0 map imu_link 50" />
+
+    <node pkg="imu_um6" type="imu_pose.py" name="imu_pose" output="screen" respawn="false">
+        <remap from="imu_data" to="imu/data"/>
+    </node>
+
+    <node pkg="rviz" type="rviz" name="rviz" args="-d $(find imu_um6)/imu.vcg"/>
+</launch>
