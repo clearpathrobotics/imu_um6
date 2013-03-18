@@ -5,6 +5,7 @@ import rospy
 import math
 import numpy
 import tf
+from time import sleep
 
 from um6.driver import Um6Drv
 from sensor_msgs.msg import Imu
@@ -62,6 +63,7 @@ class ImuUm6Node(object):
 
         while not rospy.is_shutdown():
             self.driver.update()
+            sleep(0.01)
 
     def um6_cmd_cb(self, cmd, result):
         if (cmd == Um6Drv.UM6_COMMUNICATION):
