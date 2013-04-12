@@ -2,7 +2,8 @@
 import serial
 import struct
 import math
-import select
+from select import select
+from time import sleep
 
 """
     Simple serial (RS232) driver for the CH Robotics UM6 IMU
@@ -27,6 +28,7 @@ class Um6Drv:
     DATA_ROLL_PITCH_YAW   = 0x02
     DATA_ANGULAR_VEL      = 0x04
     DATA_LINEAR_ACCEL     = 0x08
+    DATA_MAGNETOMETER     = 0x10
 
     # configuration registers
     UM6_COMMUNICATION   = 0x00
@@ -54,11 +56,24 @@ class Um6Drv:
     # [31] RESERVED
     UM6_COMMUNICATION_DATA = 0x47c00500
 
+    # configuration registers
+    UM6_MISC   = 0x01
+    # configuration data
+    # [0-26] reserved
+    # [27] PPS enabled
+    # [28] Quaternion state estimation: 1
+    # [29] Auto calibration of gyros
+    # [30] EKF uses accelerometer
+    # [31] EKF uses magnetometer
+    UM6_MISC_DATA = 0x78000000
+
     # data registers
     UM6_GYRO_PROC_XY     = 0x5C
     UM6_GYRO_PROC_Z      = 0x5D
     UM6_ACCEL_PROC_XY    = 0x5E
     UM6_ACCEL_PROC_Z     = 0x5F
+    UM6_MAG_PROC_XY      = 0x60
+    UM6_MAG_PROC_Z       = 0x61
     UM6_EULER_PHI_THETA  = 0x62
     UM6_EULER_PSI        = 0x63
     UM6_QUAT_AB          = 0x64
@@ -88,6 +103,7 @@ class Um6Drv:
     SCALE_QUAT  = 0.0000335693
     SCALE_EULER = 0.0109863
     SCALE_GYRO  = 0.0610352
+    SCALE_MAG  =  0.000305176
     SCALE_ACCEL = 0.000183105
 
     NO_DATA_PACKET       = 0x00
@@ -96,6 +112,9 @@ class Um6Drv:
     wip_quat = [] # tmp var for building quats from register reads
 
     valid = {'quaternion': False,
+               'mag_x': False,
+               'mag_y': False,
+               'mag_z': False,
                'lin_acc_x': False,
                'lin_acc_y': False,
                'lin_acc_z': False,
@@ -111,6 +130,8 @@ class Um6Drv:
                                     baudrate=115200, 
                                     bytesize=8, parity='N', 
                                     stopbits=1, timeout=None)
+        self.ser.flushInput()
+        self.ser.flushOutput()
         self.data_callback = cb
         self.output = outputDataMask
 
@@ -121,9 +142,11 @@ class Um6Drv:
         pkt = self.readPacket()
         if (pkt != Um6Drv.NO_DATA_PACKET):       
             self.decodePacket(pkt)
+        else:
+            sleep(0.001)
 
     def updateBlocking(self, timeout=1.0):
-        rlist, _, _ = select.select([ self.ser ], [], [], timeout)
+        rlist, _, _ = select([ self.ser ], [], [], timeout)
         if rlist:
             self.update()
 
@@ -245,6 +268,19 @@ class Um6Drv:
                                 Um6Drv.SCALE_GYRO)
             self.valid['ang_vel_z'] = True 
 
+        if (addr == Um6Drv.UM6_MAG_PROC_XY):
+            self.mag_x = ((self.bytesToShort(data[0],data[1])) * 
+                                Um6Drv.SCALE_MAG)
+            self.mag_y = ((self.bytesToShort(data[2],data[3])) * 
+                                Um6Drv.SCALE_MAG)
+            self.valid['mag_x'] = True 
+            self.valid['mag_y'] = True 
+
+        if (addr == Um6Drv.UM6_MAG_PROC_Z):
+            self.mag_z = ((self.bytesToShort(data[0],data[1])) * 
+                                Um6Drv.SCALE_MAG)
+            self.valid['mag_z'] = True 
+
         if (addr == Um6Drv.UM6_ACCEL_PROC_XY):
             self.lin_acc_x = ((self.bytesToShort(data[0],data[1])) * 
                                 Um6Drv.SCALE_ACCEL)
@@ -316,6 +352,10 @@ class Um6Drv:
                 results['DATA_ANGULAR_VEL'] = [self.ang_vel_x, 
                                                self.ang_vel_y, 
                                                self.ang_vel_z]
+            if ((self.output & Um6Drv.DATA_MAGNETOMETER) != 0):
+                results['DATA_MAGNETOMETER'] = [self.mag_x, 
+                                               self.mag_y, 
+                                               self.mag_z]
             if ((self.output & Um6Drv.DATA_LINEAR_ACCEL) != 0):
                 results['DATA_LINEAR_ACCEL'] = [self.lin_acc_x, 
                                                 self.lin_acc_y, 
