@@ -2,6 +2,7 @@
 import serial
 import struct
 import math
+import select
 
 """
     Simple serial (RS232) driver for the CH Robotics UM6 IMU
@@ -120,6 +121,11 @@ class Um6Drv:
         pkt = self.readPacket()
         if (pkt != Um6Drv.NO_DATA_PACKET):       
             self.decodePacket(pkt)
+
+    def updateBlocking(self, timeout=1.0):
+        rlist, _, _ = select.select([ self.ser ], [], [], timeout)
+        if rlist:
+            self.update()
 
     def syncToHeader(self):
         while (self.ser.inWaiting() > 0):

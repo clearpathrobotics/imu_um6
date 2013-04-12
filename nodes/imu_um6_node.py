@@ -62,8 +62,8 @@ class ImuUm6Node(object):
         self.driver.sendConfig(Um6Drv.UM6_COMMUNICATION, Um6Drv.UM6_COMMUNICATION_DATA, self.um6_cmd_cb)
 
         while not rospy.is_shutdown():
-            self.driver.update()
-            sleep(0.01)
+            self.driver.updateBlocking()
+            #sleep(0.01)
 
     def um6_cmd_cb(self, cmd, result):
         if (cmd == Um6Drv.UM6_COMMUNICATION):
