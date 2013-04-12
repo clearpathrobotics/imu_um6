@@ -60,13 +60,39 @@ class ImuUm6Node(object):
                     Um6Drv.DATA_ANGULAR_VEL | Um6Drv.DATA_MAGNETOMETER)
 
         self.driver = Um6Drv(self.port, dataMask, self.um6_data_cb)
+        
+        self.received = -1
+        cmd_seq = [Um6Drv.CMD_ZERO_GYROS, Um6Drv.CMD_RESET_EKF,
+                Um6Drv.CMD_SET_MAG_REF, Um6Drv.CMD_SET_ACCEL_REF,
+                (Um6Drv.UM6_MISC,Um6Drv.UM6_MISC_DATA),
+                (Um6Drv.UM6_COMMUNICATION,Um6Drv.UM6_COMMUNICATION_DATA)]
+        while (not rospy.is_shutdown()) and (len(cmd_seq)>0):
+            cmd = cmd_seq[0]
+            if type(cmd)==tuple:
+                (cmd,data) = cmd
+                self.driver.sendConfig(cmd, data, self.um6_cmd_cb)
+            else:
+                self.driver.sendCommand(cmd, self.um6_cmd_cb);
+            start = rospy.Time.now()
+            while (rospy.Time.now() - start).to_sec() < 0.5:
+                self.driver.update()
+                if self.received == cmd:
+                    break
+            if self.received == cmd:
+                self.received = -1
+                cmd_seq = cmd_seq[1:]
+        rospy.loginfo("Imu initialisation completed")
 
+
+
+        # Send a first packet to reset the communication
         # zero the gyros, reset the kalman filter, reset reference headings
-        self.driver.sendCommand(Um6Drv.CMD_ZERO_GYROS, self.um6_cmd_cb)
-        self.driver.sendCommand(Um6Drv.CMD_RESET_EKF, self.um6_cmd_cb)
-        self.driver.sendCommand(Um6Drv.CMD_SET_MAG_REF, self.um6_cmd_cb)
-        self.driver.sendCommand(Um6Drv.CMD_SET_ACCEL_REF, self.um6_cmd_cb)
-        self.driver.sendConfig(Um6Drv.UM6_COMMUNICATION, Um6Drv.UM6_COMMUNICATION_DATA, self.um6_cmd_cb)
+        # self.driver.sendCommand(Um6Drv.CMD_ZERO_GYROS, self.um6_cmd_cb);sleep(0.5)
+        # self.driver.sendCommand(Um6Drv.CMD_RESET_EKF, self.um6_cmd_cb);sleep(0.5)
+        # self.driver.sendCommand(Um6Drv.CMD_SET_MAG_REF, self.um6_cmd_cb);sleep(0.5)
+        # self.driver.sendCommand(Um6Drv.CMD_SET_ACCEL_REF, self.um6_cmd_cb);sleep(0.5)
+        # self.driver.sendConfig(Um6Drv.UM6_MISC, Um6Drv.UM6_MISC_DATA, self.um6_cmd_cb)
+        # self.driver.sendConfig(Um6Drv.UM6_COMMUNICATION, Um6Drv.UM6_COMMUNICATION_DATA, self.um6_cmd_cb)
 
         while not rospy.is_shutdown():
             self.driver.update()
@@ -85,6 +111,8 @@ class ImuUm6Node(object):
             rospy.loginfo("Set Magnetometer Reference: %s"%(result))
         if (cmd == Um6Drv.CMD_SET_ACCEL_REF):
             rospy.loginfo("Set Accelerometer Reference: %s"%(result))
+        if result:
+            self.received = cmd
 
     def um6_data_cb(self, data):
         now = rospy.Time.now()
