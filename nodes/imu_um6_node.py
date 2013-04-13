@@ -30,6 +30,8 @@ class ImuUm6Node(object):
 
         self.port = rospy.get_param('~port', default_port)
         self.throttle_rate = rospy.get_param('~throttle_rate', 10)
+        self.reset_mag = rospy.get_param('~reset_mag', True)
+        self.reset_accel = rospy.get_param('~reset_accel', True)
         rospy.loginfo("serial port: %s"%(self.port))
 
         self.imu_data = Imu()
@@ -64,9 +66,12 @@ class ImuUm6Node(object):
         self.driver = Um6Drv(self.port, dataMask, self.um6_data_cb)
         
         self.received = -1
-        cmd_seq = [Um6Drv.CMD_ZERO_GYROS, Um6Drv.CMD_RESET_EKF,
-                Um6Drv.CMD_SET_MAG_REF, Um6Drv.CMD_SET_ACCEL_REF,
-                (Um6Drv.UM6_MISC,Um6Drv.UM6_MISC_DATA),
+        cmd_seq = [Um6Drv.CMD_ZERO_GYROS, Um6Drv.CMD_RESET_EKF]
+        if self.reset_mag:
+            cmd_seq.append(Um6Drv.CMD_SET_MAG_REF)
+        if self.reset_accel:
+            cmd_seq.append(Um6Drv.CMD_SET_ACCEL_REF)
+        cnd_seq += [(Um6Drv.UM6_MISC,Um6Drv.UM6_MISC_DATA),
                 (Um6Drv.UM6_COMMUNICATION,Um6Drv.UM6_COMMUNICATION_DATA)]
         while (not rospy.is_shutdown()) and (len(cmd_seq)>0):
             cmd = cmd_seq[0]
