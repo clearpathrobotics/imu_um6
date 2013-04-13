@@ -54,7 +54,10 @@ class Um6Drv:
     # [29] Raw gyro 
     # [30] Broadcast mode: 1
     # [31] RESERVED
-    UM6_COMMUNICATION_DATA = 0x47c00500
+    # Default value, do funky stuff with the magnetometer data
+    # UM6_COMMUNICATION_DATA = 0x47c00500
+    # Magnetometer is RAW
+    UM6_COMMUNICATION_DATA = 0x4Ec00500
 
     # configuration registers
     UM6_MISC   = 0x01
@@ -68,6 +71,8 @@ class Um6Drv:
     UM6_MISC_DATA = 0x78000000
 
     # data registers
+    UM6_RAW_MAG_PROC_XY      = 0x5A
+    UM6_RAW_MAG_PROC_Z       = 0x5B
     UM6_GYRO_PROC_XY     = 0x5C
     UM6_GYRO_PROC_Z      = 0x5D
     UM6_ACCEL_PROC_XY    = 0x5E
@@ -267,6 +272,16 @@ class Um6Drv:
             self.ang_vel_z = ((self.bytesToShort(data[0],data[1])) * 
                                 Um6Drv.SCALE_GYRO)
             self.valid['ang_vel_z'] = True 
+
+        if (addr == Um6Drv.UM6_RAW_MAG_PROC_XY):
+            self.mag_x = (self.bytesToShort(data[0],data[1]))
+            self.mag_y = (self.bytesToShort(data[2],data[3]))
+            self.valid['mag_x'] = True 
+            self.valid['mag_y'] = True 
+
+        if (addr == Um6Drv.UM6_RAW_MAG_PROC_Z):
+            self.mag_z = (self.bytesToShort(data[0],data[1])) 
+            self.valid['mag_z'] = True 
 
         if (addr == Um6Drv.UM6_MAG_PROC_XY):
             self.mag_x = ((self.bytesToShort(data[0],data[1])) * 
