@@ -11,6 +11,7 @@ from um6.driver import Um6Drv
 from sensor_msgs.msg import Imu
 from geometry_msgs.msg import Quaternion
 from geometry_msgs.msg import Vector3Stamped
+from imu_um6.srv import *
 from tf.transformations import quaternion_multiply
 from tf.transformations import quaternion_about_axis
 
@@ -28,6 +29,7 @@ class ImuUm6Node(object):
         rospy.init_node('imu_um6')
 
         self.port = rospy.get_param('~port', default_port)
+        self.throttle_rate = rospy.get_param('~throttle_rate', 10)
         rospy.loginfo("serial port: %s"%(self.port))
 
         self.imu_data = Imu()
@@ -75,7 +77,7 @@ class ImuUm6Node(object):
                 self.driver.sendCommand(cmd, self.um6_cmd_cb);
             start = rospy.Time.now()
             while (rospy.Time.now() - start).to_sec() < 0.5:
-                self.driver.update()
+                self.driver.updateBlocking(0.5)
                 if self.received == cmd:
                     break
             if self.received == cmd:
@@ -83,7 +85,7 @@ class ImuUm6Node(object):
                 cmd_seq = cmd_seq[1:]
         rospy.loginfo("Imu initialisation completed")
 
-
+        self.reset_srv = rospy.Service('reset', Reset, self.reset_service_cb)
 
         # Send a first packet to reset the communication
         # zero the gyros, reset the kalman filter, reset reference headings
@@ -113,9 +115,22 @@ class ImuUm6Node(object):
         if result:
             self.received = cmd
 
+    def reset_service_cb(req):
+        if req.zero_gyros:
+            self.driver.sendCommand(Um6Drv.CMD_ZERO_GYROS, self.um6_cmd_cb);
+        if req.reset_ekf:
+            self.driver.sendCommand(Um6Drv.CMD_RESET_EKF, self.um6_cmd_cb);
+        if req.set_mag_ref:
+            self.driver.sendCommand(Um6Drv.CMD_SET_MAG_REF, self.um6_cmd_cb);
+        if req.set_accel_ref:
+            self.driver.sendCommand(Um6Drv.CMD_SET_ACCEL_REF, self.um6_cmd_cb);
+        rospy.loginfo("Imu initialisation completed")
+        return ResetResponse()
+
+
     def um6_data_cb(self, data):
         now = rospy.Time.now()
-        if (now.to_sec() - self.imu_data.header.stamp.to_sec())<0.1:
+        if (now.to_sec() - self.imu_data.header.stamp.to_sec())*self.throttle_rate < 1.:
             # Ignore data at this rate (ok for a boat)
             return
         self.imu_data.header.stamp = now
@@ -146,9 +161,9 @@ class ImuUm6Node(object):
         self.imu_pub.publish(self.imu_data)
 
         self.rpy_data.header = self.imu_data.header
-        self.rpy_data.vector.x = data['DATA_ROLL_PITCH_YAW'][0]
-        self.rpy_data.vector.y = data['DATA_ROLL_PITCH_YAW'][1]
-        self.rpy_data.vector.z = data['DATA_ROLL_PITCH_YAW'][2]
+        self.rpy_data.vector.x = -data['DATA_ROLL_PITCH_YAW'][0] * (math.pi/180.0)
+        self.rpy_data.vector.y = -data['DATA_ROLL_PITCH_YAW'][1] * (math.pi/180.0)
+        self.rpy_data.vector.z = data['DATA_ROLL_PITCH_YAW'][2] * (math.pi/180.0)
         self.rpy_pub.publish(self.rpy_data)
 
         self.mag_data.header = self.imu_data.header
