@@ -85,7 +85,7 @@ class ImuUm6Node(object):
                 cmd_seq = cmd_seq[1:]
         rospy.loginfo("Imu initialisation completed")
 
-        self.reset_srv = rospy.Service('reset', Reset, self.reset_service_cb)
+        self.reset_srv = rospy.Service('imu/reset', Reset, self.reset_service_cb)
 
         # Send a first packet to reset the communication
         # zero the gyros, reset the kalman filter, reset reference headings
@@ -115,15 +115,28 @@ class ImuUm6Node(object):
         if result:
             self.received = cmd
 
-    def reset_service_cb(req):
+    def reset_service_cb(self,req):
+        cmd_seq = []
         if req.zero_gyros:
-            self.driver.sendCommand(Um6Drv.CMD_ZERO_GYROS, self.um6_cmd_cb);
+            cmd_seq.append(Um6Drv.CMD_ZERO_GYROS)
         if req.reset_ekf:
-            self.driver.sendCommand(Um6Drv.CMD_RESET_EKF, self.um6_cmd_cb);
+            cmd_seq.append(Um6Drv.CMD_RESET_EKF)
         if req.set_mag_ref:
-            self.driver.sendCommand(Um6Drv.CMD_SET_MAG_REF, self.um6_cmd_cb);
+            cmd_seq.append(Um6Drv.CMD_SET_MAG_REF)
         if req.set_accel_ref:
-            self.driver.sendCommand(Um6Drv.CMD_SET_ACCEL_REF, self.um6_cmd_cb);
+            cmd_seq.append(Um6Drv.CMD_SET_ACCEL_REF)
+        self.received = -1
+        while (not rospy.is_shutdown()) and (len(cmd_seq)>0):
+            cmd = cmd_seq[0]
+            self.driver.sendCommand(cmd, self.um6_cmd_cb);
+            start = rospy.Time.now()
+            while (rospy.Time.now() - start).to_sec() < 0.5:
+                rospy.sleep(0.01)
+                if self.received == cmd:
+                    break
+            if self.received == cmd:
+                self.received = -1
+                cmd_seq = cmd_seq[1:]
         rospy.loginfo("Imu initialisation completed")
         return ResetResponse()
 
