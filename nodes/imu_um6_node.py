@@ -193,8 +193,8 @@ class ImuUm6Node(object):
         self.rpy_data.header = self.imu_data.header
         self.rpy_data.vector.x = -data['DATA_ROLL_PITCH_YAW'][0] * (math.pi/180.0)
         self.rpy_data.vector.y = -data['DATA_ROLL_PITCH_YAW'][1] * (math.pi/180.0)
-        # self.rpy_data.vector.z = data['DATA_ROLL_PITCH_YAW'][2] * (math.pi/180.0)
-        self.rpy_data.vector.z = -math.pi/2 - math.atan2(self.mag_data.vector.y,self.mag_data.vector.x) # ENU
+        self.rpy_data.vector.z = data['DATA_ROLL_PITCH_YAW'][2] * (math.pi/180.0)
+        # self.rpy_data.vector.z = -math.pi/2 - math.atan2(self.mag_data.vector.y,self.mag_data.vector.x) # ENU
         self.rpy_pub.publish(self.rpy_data)
 
 if __name__ == '__main__':
