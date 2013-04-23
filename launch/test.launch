@@ -1,0 +1,11 @@
+<launch>
+    <include file="imu.launch" />
+
+    <test test-name="verify_imu" pkg="rostest" type="hztest" name="verify_imu_1">
+        <param name="topic" value="imu_pose"/>
+        <param name="hz" value="20"/>
+        <param name="hzerror" value=".5"/>
+        <param name="test_duration" value="1"/>
+        <param name="wait_time" value="2"/>
+    </test>
+</launch>

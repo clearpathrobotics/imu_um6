@@ -1,0 +1,7 @@
+<launch>
+    <arg name="port" default="/dev/ttyUSB0" />
+
+    <node pkg="imu_um6" type="imu_um6_node.py" name="imu_um6_node" output="screen" respawn="true">
+        <param name="port" type="string" value="$(arg port)"/>
+    </node>
+</launch>
