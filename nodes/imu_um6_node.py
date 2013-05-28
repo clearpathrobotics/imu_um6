@@ -154,9 +154,9 @@ class ImuUm6Node(object):
         if self.rpy_pub.get_num_connections() != 0:
 
           self.rpy_data.header = self.imu_data.header
-          self.rpy_data.vector.x = data['DATA_ROLL_PITCH_YAW'][0]
-          self.rpy_data.vector.y = data['DATA_ROLL_PITCH_YAW'][1]
-          self.rpy_data.vector.z = data['DATA_ROLL_PITCH_YAW'][2]
+          self.rpy_data.vector.x = math.radians(data['DATA_ROLL_PITCH_YAW'][0])
+          self.rpy_data.vector.y = math.radians(data['DATA_ROLL_PITCH_YAW'][1])
+          self.rpy_data.vector.z = math.radians(data['DATA_ROLL_PITCH_YAW'][2])
           self.rpy_pub.publish(self.rpy_data)
           
         if self.mag_pub.get_num_connections() != 0:
