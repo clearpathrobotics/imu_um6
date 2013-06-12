@@ -1,6 +1,7 @@
 #! /usr/bin/env python
 import roslib; roslib.load_manifest('imu_um6')
 
+import cProfile
 import rospy
 import math
 import numpy
@@ -76,7 +77,7 @@ class ImuUm6Node(object):
             cmd_seq.append(Um6Drv.CMD_SET_MAG_REF)
         if self.reset_accel:
             cmd_seq.append(Um6Drv.CMD_SET_ACCEL_REF)
-        cnd_seq += [(Um6Drv.UM6_MISC,Um6Drv.UM6_MISC_DATA),
+        cmd_seq += [(Um6Drv.UM6_MISC,Um6Drv.UM6_MISC_DATA),
                 (Um6Drv.UM6_COMMUNICATION,Um6Drv.UM6_COMMUNICATION_DATA)]
         while (not rospy.is_shutdown()) and (len(cmd_seq)>0):
             cmd = cmd_seq[0]
@@ -199,3 +200,4 @@ class ImuUm6Node(object):
 
 if __name__ == '__main__':
     node = ImuUm6Node()
+    # cProfile.run("node = ImuUm6Node()")
