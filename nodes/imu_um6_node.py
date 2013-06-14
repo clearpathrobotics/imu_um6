@@ -7,6 +7,7 @@ import math
 import numpy
 import tf
 from time import sleep
+from serial import SerialException
 
 from um6.driver import Um6Drv
 from sensor_msgs.msg import Imu
@@ -72,46 +73,43 @@ class ImuUm6Node(object):
                     Um6Drv.DATA_LINEAR_ACCEL | 
                     Um6Drv.DATA_ANGULAR_VEL | Um6Drv.DATA_MAGNETOMETER)
 
-        self.driver = Um6Drv(self.port, dataMask, self.um6_data_cb)
-        
-        self.received = -1
-        cmd_seq = [Um6Drv.CMD_ZERO_GYROS, Um6Drv.CMD_RESET_EKF]
-        if self.reset_mag:
-            cmd_seq.append(Um6Drv.CMD_SET_MAG_REF)
-        if self.reset_accel:
-            cmd_seq.append(Um6Drv.CMD_SET_ACCEL_REF)
-        cmd_seq += [(Um6Drv.UM6_MISC,Um6Drv.UM6_MISC_DATA),
-                (Um6Drv.UM6_COMMUNICATION,Um6Drv.UM6_COMMUNICATION_DATA)]
-        while (not rospy.is_shutdown()) and (len(cmd_seq)>0):
-            cmd = cmd_seq[0]
-            if type(cmd)==tuple:
-                (cmd,data) = cmd
-                self.driver.sendConfig(cmd, data, self.um6_cmd_cb)
-            else:
-                self.driver.sendCommand(cmd, self.um6_cmd_cb);
-            start = rospy.Time.now()
-            while (rospy.Time.now() - start).to_sec() < 0.5:
-                self.driver.updateBlocking(0.5)
-                if self.received == cmd:
-                    break
-            if self.received == cmd:
-                self.received = -1
-                cmd_seq = cmd_seq[1:]
-        rospy.loginfo("Imu initialisation completed")
-
-        self.reset_srv = rospy.Service('imu/reset', Reset, self.reset_service_cb)
-
-        # Send a first packet to reset the communication
-        # zero the gyros, reset the kalman filter, reset reference headings
-        # self.driver.sendCommand(Um6Drv.CMD_ZERO_GYROS, self.um6_cmd_cb);sleep(0.5)
-        # self.driver.sendCommand(Um6Drv.CMD_RESET_EKF, self.um6_cmd_cb);sleep(0.5)
-        # self.driver.sendCommand(Um6Drv.CMD_SET_MAG_REF, self.um6_cmd_cb);sleep(0.5)
-        # self.driver.sendCommand(Um6Drv.CMD_SET_ACCEL_REF, self.um6_cmd_cb);sleep(0.5)
-        # self.driver.sendConfig(Um6Drv.UM6_MISC, Um6Drv.UM6_MISC_DATA, self.um6_cmd_cb)
-        # self.driver.sendConfig(Um6Drv.UM6_COMMUNICATION, Um6Drv.UM6_COMMUNICATION_DATA, self.um6_cmd_cb)
-
         while not rospy.is_shutdown():
-            self.driver.updateBlocking()
+          try:
+            self.driver = Um6Drv(self.port, dataMask, self.um6_data_cb)
+            
+            self.received = -1
+            cmd_seq = [Um6Drv.CMD_ZERO_GYROS, Um6Drv.CMD_RESET_EKF]
+            if self.reset_mag:
+                cmd_seq.append(Um6Drv.CMD_SET_MAG_REF)
+            if self.reset_accel:
+                cmd_seq.append(Um6Drv.CMD_SET_ACCEL_REF)
+            cmd_seq += [(Um6Drv.UM6_MISC,Um6Drv.UM6_MISC_DATA),
+                    (Um6Drv.UM6_COMMUNICATION,Um6Drv.UM6_COMMUNICATION_DATA)]
+            while (not rospy.is_shutdown()) and (len(cmd_seq)>0):
+                cmd = cmd_seq[0]
+                if type(cmd)==tuple:
+                    (cmd,data) = cmd
+                    self.driver.sendConfig(cmd, data, self.um6_cmd_cb)
+                else:
+                    self.driver.sendCommand(cmd, self.um6_cmd_cb);
+                start = rospy.Time.now()
+                while (rospy.Time.now() - start).to_sec() < 0.5:
+                    self.driver.updateBlocking(0.5)
+                    if self.received == cmd:
+                        break
+                if self.received == cmd:
+                    self.received = -1
+                    cmd_seq = cmd_seq[1:]
+            rospy.loginfo("Imu initialization completed")
+            self.reset_srv = rospy.Service('imu/reset', Reset, self.reset_service_cb)
+
+            while not rospy.is_shutdown():
+                self.driver.updateBlocking()
+
+          except SerialException:
+            rospy.logwarn("Serial error communicating with IMU. Will retry in 2.0 seconds.")
+            rospy.sleep(2.0)
+
 
     def um6_cmd_cb(self, cmd, result):
         if (cmd == Um6Drv.UM6_COMMUNICATION):
@@ -207,5 +205,6 @@ class ImuUm6Node(object):
           self.mag_pub.publish(self.mag_data)
 
 if __name__ == '__main__':
+
     node = ImuUm6Node()
     # cProfile.run("node = ImuUm6Node()")
