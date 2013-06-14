@@ -9,21 +9,15 @@ from scipy import optimize
 import datetime
 
 # Plots are optional
-
 try:
   from matplotlib import pyplot
   from mpl_toolkits.mplot3d import Axes3D
 except ImportError:
   pyplot = None
 
-
 parser = ArgumentParser(description='Process UM6 bag file for compass calibration.')
 parser.add_argument('bag', metavar='FILE', type=str, help='input bag file')
 args = parser.parse_args()
-#print args.accumulate(args.integers)
-
-#bag = rosbag.Bag("../bags/2013-04-13-17-19-29.bag")
-#bag = rosbag.Bag("../bags/2013-04-13-17-20-39.bag")
 bag = rosbag.Bag(args.bag)
 
 time_yaw_tuples = []
@@ -96,11 +90,8 @@ with open(FILENAME, "w") as f:
 rospy.loginfo("Calibration file located at %s", FILENAME)
 
 if pyplot:
-  #fig = pyplot.figure()
   ax2 = fig.add_subplot(212, projection='3d')
   ax2.view_init(elev=80, azim=5)
   ax2.scatter(x, y, z)
   ax2.plot(*circle_points, c="red")
   pyplot.show()
-
-
