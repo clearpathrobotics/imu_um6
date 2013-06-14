@@ -3,5 +3,6 @@
 
     <node pkg="imu_um6" type="imu_um6_node.py" name="imu_um6_node" output="screen" respawn="true">
         <param name="port" type="string" value="$(arg port)"/>
+        <rosparam file="$(find imu_um6)/calibration/default.yaml" />
     </node>
 </launch>
