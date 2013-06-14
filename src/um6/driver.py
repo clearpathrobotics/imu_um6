@@ -54,7 +54,10 @@ class Um6Drv:
     # [29] Raw gyro 
     # [30] Broadcast mode: 1
     # [31] RESERVED
-    UM6_COMMUNICATION_DATA = 0x47c00500
+    # Default value, do funky stuff with the magnetometer data
+    # UM6_COMMUNICATION_DATA = 0x47c00500
+    # Magnetometer is RAW
+    UM6_COMMUNICATION_DATA = 0x4Ec00500
 
     # configuration registers
     UM6_MISC   = 0x01
@@ -68,6 +71,8 @@ class Um6Drv:
     UM6_MISC_DATA = 0x78000000
 
     # data registers
+    UM6_RAW_MAG_PROC_XY      = 0x5A
+    UM6_RAW_MAG_PROC_Z       = 0x5B
     UM6_GYRO_PROC_XY     = 0x5C
     UM6_GYRO_PROC_Z      = 0x5D
     UM6_ACCEL_PROC_XY    = 0x5E
@@ -132,6 +137,7 @@ class Um6Drv:
                                     stopbits=1, timeout=None)
         self.ser.flushInput()
         self.ser.flushOutput()
+        self.buf = ""
         self.data_callback = cb
         self.output = outputDataMask
 
@@ -145,18 +151,29 @@ class Um6Drv:
         else:
             sleep(0.001)
 
+    def waitData(self, nbytes=1, timeout=1.0):
+        while True:
+            self.buf += self.ser.read(self.ser.inWaiting())
+            if len(self.buf)>=nbytes:
+                return True
+            rlist, _, _ = select([ self.ser ], [], [], timeout)
+            if rlist<=0:
+                return False
+            # Now sleep for the expected time necessary to receive these bits
+            sleep(1e-4*(nbytes-len(self.buf)))
+
     def updateBlocking(self, timeout=1.0):
         rlist, _, _ = select([ self.ser ], [], [], timeout)
         if rlist:
             self.update()
 
     def syncToHeader(self):
-        while (self.ser.inWaiting() > 0):
-            if (self.ser.read()=='s' and
-                self.ser.read()=='n' and
-                self.ser.read()=='p'):
-                return 1 
-            return 0 
+        if self.waitData(3):
+            idx = self.buf.find("snp")
+            if idx>=0:
+                self.buf = self.buf[idx+3:]
+                return True
+        return False 
 
     def sendConfig(self, reg, data, callback):
         """ Sends a 4 byte configuration message """
@@ -198,15 +215,17 @@ class Um6Drv:
     def readPacket(self):
         if (not self.syncToHeader()):
             return Um6Drv.NO_DATA_PACKET
+        if not self.waitData(2):
+            return Um6Drv.NO_DATA_PACKET
 
-        packetType = self.chToByte(self.ser.read())
+        packetType = self.chToByte(self.buf[0])
 
         hasData = packetType >> 7
         isBatch = (packetType >> 6) & 0x01
         batchLen = (packetType >> 2) & 0x0F
 
         #print "hasData=%s, isBatch=%s, batchLen=%s" % (hasData,isBatch,batchLen)
-        addr = self.chToByte(self.ser.read())
+        addr = self.chToByte(self.buf[1])
 
         calcChkSum = (self.chToByte("s") +
                       self.chToByte("n") +
@@ -217,15 +236,21 @@ class Um6Drv:
         packet.append(packetType)
         packet.append(addr)
 
+        self.buf = self.buf[2:]
+        if not self.waitData(batchLen*4+2):
+            return Um6Drv.NO_DATA_PACKET
+
         for i in range(0, batchLen * 4): # 4 bytes per register
-            byte = self.chToByte(self.ser.read())
+            byte = self.chToByte(self.buf[i])
             packet.append(byte)
             calcChkSum += byte
+        self.buf = self.buf[batchLen*4:]
 
-        high = self.chToByte(self.ser.read())
-        low  = self.chToByte(self.ser.read()) 
+        high = self.chToByte(self.buf[0])
+        low  = self.chToByte(self.buf[1]) 
 
         chkSum = self.bytesToShort(high,low)
+        self.buf = self.buf[2:]
 
         if (calcChkSum != chkSum):
             print "Read Pkt: BAD CHECKSUM"
@@ -267,6 +292,16 @@ class Um6Drv:
             self.ang_vel_z = ((self.bytesToShort(data[0],data[1])) * 
                                 Um6Drv.SCALE_GYRO)
             self.valid['ang_vel_z'] = True 
+
+        if (addr == Um6Drv.UM6_RAW_MAG_PROC_XY):
+            self.mag_x = (self.bytesToShort(data[0],data[1]))
+            self.mag_y = (self.bytesToShort(data[2],data[3]))
+            self.valid['mag_x'] = True 
+            self.valid['mag_y'] = True 
+
+        if (addr == Um6Drv.UM6_RAW_MAG_PROC_Z):
+            self.mag_z = (self.bytesToShort(data[0],data[1])) 
+            self.valid['mag_z'] = True 
 
         if (addr == Um6Drv.UM6_MAG_PROC_XY):
             self.mag_x = ((self.bytesToShort(data[0],data[1])) * 
