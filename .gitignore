@@ -1,2 +1,4 @@
 build
 *.py[cod]
+src/imu_um6
+*_gen
