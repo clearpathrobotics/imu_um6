@@ -31,7 +31,7 @@ class ImuUm6Node(object):
 
         self.port = rospy.get_param('~port', default_port)
         self.frame_id = rospy.get_param('~frame_id', "/imu")
-        self.throttle_rate = rospy.get_param('~throttle_rate', 10)
+        self.throttle_rate = rospy.get_param('~throttle_rate', 1000)
         self.reset_mag = rospy.get_param('~reset_mag', True)
         self.reset_accel = rospy.get_param('~reset_accel', True)
         self.mag_zero_x = rospy.get_param('~mag_zero_x', 0.0)
@@ -160,7 +160,6 @@ class ImuUm6Node(object):
         if (now.to_sec() - self.imu_data.header.stamp.to_sec())*self.throttle_rate < 1.:
             # Ignore data at this rate (ok for a boat)
             return
-<<<<<<< HEAD
 
         if self.imu_pub.get_num_connections() != 0:
 
@@ -181,9 +180,9 @@ class ImuUm6Node(object):
 
           # convert to radians from degrees
           # again note NED to ENU converstion
-          self.imu_data.angular_velocity.x = data['DATA_ANGULAR_VEL'][1] * (math.pi/180.0)
-          self.imu_data.angular_velocity.y = data['DATA_ANGULAR_VEL'][0] * (math.pi/180.0)
-          self.imu_data.angular_velocity.z = -(data['DATA_ANGULAR_VEL'][2] * (math.pi/180.0))
+          self.imu_data.angular_velocity.x = math.radians(data['DATA_ANGULAR_VEL'][1])
+          self.imu_data.angular_velocity.y = math.radians(data['DATA_ANGULAR_VEL'][0])
+          self.imu_data.angular_velocity.z = -math.radians(data['DATA_ANGULAR_VEL'][2])
           # again note NED to ENU converstion
           self.imu_data.linear_acceleration.x = data['DATA_LINEAR_ACCEL'][1]
           self.imu_data.linear_acceleration.y = data['DATA_LINEAR_ACCEL'][0]
@@ -206,48 +205,6 @@ class ImuUm6Node(object):
           self.mag_data.vector.y = data['DATA_MAGNETOMETER'][1]
           self.mag_data.vector.z = data['DATA_MAGNETOMETER'][2]
           self.mag_pub.publish(self.mag_data)
-=======
-        self.imu_data.header.frame_id = self.frame_id
-        self.imu_data.header.stamp = now
-        self.imu_data.orientation = Quaternion()
-        # print data
-
-        # IMU outputs [w,x,y,z] NED, convert to [x,y,z,w] ENU
-        q = [data['DATA_QUATERNION'][2],
-             data['DATA_QUATERNION'][1],
-            -data['DATA_QUATERNION'][3],
-             data['DATA_QUATERNION'][0]]
-
-        self.imu_data.orientation.x = q[0] 
-        self.imu_data.orientation.y = q[1]
-        self.imu_data.orientation.z = q[2]
-        self.imu_data.orientation.w = q[3] 
-
-        # convert to radians from degrees
-        # again note NED to ENU converstion
-        self.imu_data.angular_velocity.x = data['DATA_ANGULAR_VEL'][1] * (math.pi/180.0)
-        self.imu_data.angular_velocity.y = data['DATA_ANGULAR_VEL'][0] * (math.pi/180.0)
-        self.imu_data.angular_velocity.z = -(data['DATA_ANGULAR_VEL'][2] * (math.pi/180.0))
-        # again note NED to ENU converstion
-        self.imu_data.linear_acceleration.x = data['DATA_LINEAR_ACCEL'][1]
-        self.imu_data.linear_acceleration.y = data['DATA_LINEAR_ACCEL'][0]
-        self.imu_data.linear_acceleration.z = -(data['DATA_LINEAR_ACCEL'][2])
-        
-        self.imu_pub.publish(self.imu_data)
-
-        self.mag_data.header = self.imu_data.header
-        self.mag_data.vector.x = data['DATA_MAGNETOMETER'][0]-self.mag_zero_x
-        self.mag_data.vector.y = data['DATA_MAGNETOMETER'][1]-self.mag_zero_y
-        self.mag_data.vector.z = data['DATA_MAGNETOMETER'][2]-self.mag_zero_z
-        self.mag_pub.publish(self.mag_data)
->>>>>>> a11232828e05ff6fb0e81e36a9bb990ad401e28f
-
-        self.rpy_data.header = self.imu_data.header
-        self.rpy_data.vector.x = -data['DATA_ROLL_PITCH_YAW'][0] * (math.pi/180.0)
-        self.rpy_data.vector.y = -data['DATA_ROLL_PITCH_YAW'][1] * (math.pi/180.0)
-        self.rpy_data.vector.z = data['DATA_ROLL_PITCH_YAW'][2] * (math.pi/180.0)
-        # self.rpy_data.vector.z = -math.pi/2 - math.atan2(self.mag_data.vector.y,self.mag_data.vector.x) # ENU
-        self.rpy_pub.publish(self.rpy_data)
 
 if __name__ == '__main__':
     node = ImuUm6Node()
