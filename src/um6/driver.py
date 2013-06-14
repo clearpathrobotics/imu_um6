@@ -70,9 +70,13 @@ class Um6Drv:
     # [31] EKF uses magnetometer
     UM6_MISC_DATA = 0x78000000
 
+    UM6_MAG_REF_X = 0x02
+    UM6_MAG_REF_Y = 0x03
+    UM6_MAG_REF_Z = 0x04
+
     # data registers
-    UM6_RAW_MAG_PROC_XY      = 0x5A
-    UM6_RAW_MAG_PROC_Z       = 0x5B
+    UM6_RAW_MAG_PROC_XY  = 0x5A
+    UM6_RAW_MAG_PROC_Z   = 0x5B
     UM6_GYRO_PROC_XY     = 0x5C
     UM6_GYRO_PROC_Z      = 0x5D
     UM6_ACCEL_PROC_XY    = 0x5E

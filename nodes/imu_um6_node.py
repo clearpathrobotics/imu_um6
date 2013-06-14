@@ -6,6 +6,7 @@ import rospy
 import math
 import numpy
 import tf
+import struct
 from time import sleep
 from serial import SerialException
 
@@ -35,14 +36,13 @@ class ImuUm6Node(object):
         self.throttle_rate = rospy.get_param('~throttle_rate', 1000)
         self.reset_mag = rospy.get_param('~reset_mag', True)
         self.reset_accel = rospy.get_param('~reset_accel', True)
-        self.mag_zero_x = rospy.get_param('~mag_zero_x', 0.0)
-        self.mag_zero_y = rospy.get_param('~mag_zero_y', 0.0)
-        self.mag_zero_z = rospy.get_param('~mag_zero_z', 0.0)
+        self.mag_zero_x = rospy.get_param('~mag_zero_x', False)
+        self.mag_zero_y = rospy.get_param('~mag_zero_y', False)
+        self.mag_zero_z = rospy.get_param('~mag_zero_z', False)
         rospy.loginfo("serial port: %s"%(self.port))
         
         self.link = rospy.get_param('~link', 'imu_link')
         rospy.loginfo("tf link: %s"%(self.link))
-        rospy.loginfo("Magnetometer calibration: %.3f %.3f %.3f",self.mag_zero_x,self.mag_zero_y,self.mag_zero_z)
 
         self.imu_data = Imu()
         self.imu_data = Imu(header=rospy.Header(frame_id=self.link))
@@ -83,12 +83,22 @@ class ImuUm6Node(object):
                 cmd_seq.append(Um6Drv.CMD_SET_MAG_REF)
             if self.reset_accel:
                 cmd_seq.append(Um6Drv.CMD_SET_ACCEL_REF)
+            if self.mag_zero_x and self.mag_zero_y and self.mag_zero_z:
+                rospy.loginfo("Magnetometer calibration: %.3f %.3f %.3f",
+                              self.mag_zero_x, self.mag_zero_y, self.mag_zero_z)
+                # This struct mess is because it's a 32bit float value being committed to the register,
+                # but the sendConfig method expects an integer. So we get an integer from the binary
+                # representation a float by going via string.
+                cmd_seq += [(Um6Drv.UM6_MAG_REF_X, struct.unpack("i", struct.pack("f", self.mag_zero_x))[0])]
+                cmd_seq += [(Um6Drv.UM6_MAG_REF_Y, struct.unpack("i", struct.pack("f", self.mag_zero_y))[0])]
+                cmd_seq += [(Um6Drv.UM6_MAG_REF_Z, struct.unpack("i", struct.pack("f", self.mag_zero_z))[0])]
             cmd_seq += [(Um6Drv.UM6_MISC,Um6Drv.UM6_MISC_DATA),
                     (Um6Drv.UM6_COMMUNICATION,Um6Drv.UM6_COMMUNICATION_DATA)]
+            
             while (not rospy.is_shutdown()) and (len(cmd_seq)>0):
                 cmd = cmd_seq[0]
                 if type(cmd)==tuple:
-                    (cmd,data) = cmd
+                    cmd, data = cmd
                     self.driver.sendConfig(cmd, data, self.um6_cmd_cb)
                 else:
                     self.driver.sendCommand(cmd, self.um6_cmd_cb);
