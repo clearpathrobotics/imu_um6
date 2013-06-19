@@ -3,10 +3,17 @@
 import roslib; roslib.load_manifest('imu_um6')
 import rosbag, rospy
 
+import datetime
 from argparse import ArgumentParser
 from numpy import mean, array, hypot, diff, convolve, arange, sin, cos, ones, pi
-from scipy import optimize
-import datetime
+
+# Prompt user if scipy is missing.
+try:
+  from scipy import optimize
+except ImportError:
+  rospy.logfatal("This script requires scipy be available.")
+  rospy.logfatal("On Ubuntu: sudo apt-get install python-scipy")
+  exit(1)
 
 # Plots are optional
 try:
@@ -15,13 +22,15 @@ try:
 except ImportError:
   pyplot = None
 
-parser = ArgumentParser(description='Process UM6 bag file for compass calibration.')
+parser = ArgumentParser(description='Process UM6 bag file for compass calibration. Pass a bag containing /imu/rpy and /imu/mag topics, with the UM6 compass facing upright, being slowly rotated in a clockwise direction for 30-120 seconds.')
 parser.add_argument('bag', metavar='FILE', type=str, help='input bag file')
+parser.add_argument('outfile', metavar='OUTFILE', type=str, help='output yaml file',
+                    nargs="?", default="/tmp/um6_calibration.yaml")
 args = parser.parse_args()
 bag = rosbag.Bag(args.bag)
 
 time_yaw_tuples = []
-for topic, msg, time in bag.read_messages(topics="/imu/rpy"):
+for topic, msg, time in bag.read_messages(topics=("/imu/rpy", "imu/rpy")):
   time_yaw_tuples.append((time.to_sec(), msg.vector.z))
 
 if len(time_yaw_tuples) < 100:
@@ -51,7 +60,7 @@ if pyplot:
   fig.gca().add_artist(lines)
 
 vecs = []
-for topic, msg, time in bag.read_messages(topics="/imu/mag"):
+for topic, msg, time in bag.read_messages(topics=("/imu/mag", "imu/mag")):
   if time.to_sec() > time_start and time.to_sec() < time_end:
     vecs.append((msg.vector.x, msg.vector.y, msg.vector.z))
 
@@ -80,14 +89,14 @@ circle_points = (center[0] + cos(a) * radius,
 
 rospy.loginfo("Magnetic circle centered at " + str(center) + ", with radius " + str(radius))
 
-FILENAME="/tmp/um6_calibration.yaml"
-with open(FILENAME, "w") as f:
+with open(args.outfile, "w") as f:
   f.write("# Generated from %s on %s.\n" % (args.bag, datetime.date.today()))
   f.write("mag_zero_x: %f\n" % center[0])
   f.write("mag_zero_y: %f\n" % center[1])
   f.write("mag_zero_z: %f\n" % center[2])
+  f.write("mag_zero_radius: %f\n" % radius)
 
-rospy.loginfo("Calibration file located at %s", FILENAME)
+rospy.loginfo("Calibration file written to %s", args.outfile)
 
 if pyplot:
   ax2 = fig.add_subplot(212, projection='3d')
