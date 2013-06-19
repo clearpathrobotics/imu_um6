@@ -33,8 +33,8 @@ class ImuUm6Node(object):
 
         self.port = rospy.get_param('~port', default_port)
         self.frame_id = rospy.get_param('~frame_id', "/imu")
-        self.throttle_rate = rospy.get_param('~throttle_rate', 1000)
-        self.reset_mag = rospy.get_param('~reset_mag', True)
+        self.throttle_rate = rospy.get_param('~throttle_rate', 5000)
+        self.reset_mag = rospy.get_param('~reset_mag', False)
         self.reset_accel = rospy.get_param('~reset_accel', True)
         self.mag_zero_x = rospy.get_param('~mag_zero_x', False)
         self.mag_zero_y = rospy.get_param('~mag_zero_y', False)
