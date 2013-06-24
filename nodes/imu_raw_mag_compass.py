@@ -31,9 +31,10 @@ class ImuRawMagCompassNode:
         data.vector.z -= self.mag_zero_z
 
         # Fixed for now. Later may determine up-vector from accelerometer.
-        self.compass_msg.vector.z = atan2(-data.vector.x, data.vector.y)
+        self.compass_msg.vector.z = atan2(-data.vector.x, -data.vector.y)
 
         self.compass_msg.header.stamp = data.header.stamp
+        self.compass_msg.header.frame_id = "imu_link"
         self.compass_pub.publish(self.compass_msg)
 
     def _imu_cb(self, data):
