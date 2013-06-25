@@ -41,9 +41,9 @@ class ImuRawMagCompassNode:
         if age > self.max_age:
             return
 
-        orient = Quaternion(*tf.transformations.quaternion_from_euler(0, 0, self.compass_msg.vector.z));
-
-        # For now just overwrite wholesale, eliminating roll and pitch.
+        # Retain roll and pitch from original message, but insert pure mag yaw value.
+        roll, pitch, yaw = tf.transformations.euler_from_quaternion([getattr(data.orientation, f) for f in data.orientation.__slots__])
+        orient = Quaternion(*tf.transformations.quaternion_from_euler(roll, pitch, self.compass_msg.vector.z));
         data.orientation = orient
 
         self.imu_pub.publish(data)
