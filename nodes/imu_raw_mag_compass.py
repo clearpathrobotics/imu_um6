@@ -4,9 +4,11 @@ import rospy
 import time
 from geometry_msgs.msg import Vector3Stamped, Quaternion
 from sensor_msgs.msg import Imu
-from math import atan2
-#from tf.transformations import euler_to_quaternion
+from math import atan2, pi
+from numpy import mean, zeros, array, any, nditer
 import tf
+
+SMOOTHING=5
 
 class ImuRawMagCompassNode:
     def __init__(self):
@@ -25,14 +27,30 @@ class ImuRawMagCompassNode:
         rospy.Subscriber("imu/mag", Vector3Stamped, self._mag_cb)
         rospy.Subscriber("imu/data", Imu, self._imu_cb)
 
+        self.yaw_vals = zeros(SMOOTHING)
+        self.yaw_index = 0
+
     def _mag_cb(self, data):
         data.vector.x -= self.mag_zero_x
         data.vector.y -= self.mag_zero_y
         data.vector.z -= self.mag_zero_z
 
         # Fixed for now. Later may determine up-vector from accelerometer.
-        self.compass_msg.vector.z = atan2(-data.vector.x, -data.vector.y)
+        self.yaw_vals[self.yaw_index] = atan2(-data.vector.x, -data.vector.y)
+        self.yaw_index += 1
+        if self.yaw_index >= len(self.yaw_vals):
+          self.yaw_index = 0
+       
+        # Detect wraparound condition.
+        # print any(self.yaw_vals > 1.5), any(self.yaw_vals < -1.5), self.yaw_vals
+        if any(self.yaw_vals > 1.5) and any(self.yaw_vals < -1.5):
+          yaw = mean([(x + 2*pi if x < -1.5 else x) for x in self.yaw_vals])
+          if yaw > pi:
+            yaw -= 2*pi
+        else:
+          yaw = mean(self.yaw_vals)
 
+        self.compass_msg.vector.z = yaw 
         self.compass_msg.header.stamp = data.header.stamp
         self.compass_msg.header.frame_id = "imu_link"
         self.compass_pub.publish(self.compass_msg)
