@@ -8,8 +8,6 @@ from math import atan2, pi
 from numpy import mean, zeros, array, any, nditer
 import tf
 
-SMOOTHING=5
-
 class ImuRawMagCompassNode:
     def __init__(self):
         rospy.init_node('imu_raw_mag_compass')
@@ -27,7 +25,7 @@ class ImuRawMagCompassNode:
         rospy.Subscriber("imu/mag", Vector3Stamped, self._mag_cb)
         rospy.Subscriber("imu/data", Imu, self._imu_cb)
 
-        self.yaw_vals = zeros(SMOOTHING)
+        self.yaw_vals = zeros(rospy.get_param('~smoothing_samples', 5))
         self.yaw_index = 0
 
     def _mag_cb(self, data):
@@ -36,7 +34,7 @@ class ImuRawMagCompassNode:
         data.vector.z -= self.mag_zero_z
 
         # Fixed for now. Later may determine up-vector from accelerometer.
-        self.yaw_vals[self.yaw_index] = atan2(-data.vector.x, -data.vector.y)
+        self.yaw_vals[self.yaw_index] = atan2(data.vector.x, -data.vector.y)
         self.yaw_index += 1
         if self.yaw_index >= len(self.yaw_vals):
           self.yaw_index = 0
