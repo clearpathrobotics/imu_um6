@@ -26,9 +26,13 @@ parser = ArgumentParser(description='Process UM6 bag file for compass calibratio
 parser.add_argument('bag', metavar='FILE', type=str, help='input bag file')
 parser.add_argument('outfile', metavar='OUTFILE', type=str, help='output yaml file',
                     nargs="?", default="/tmp/um6_calibration.yaml")
+parser.add_argument('--plots', type=bool, help='Show plots if matplotlib available.')
 args = parser.parse_args()
-bag = rosbag.Bag(args.bag)
 
+if not args.plots:
+    pyplot = None
+
+bag = rosbag.Bag(args.bag)
 time_yaw_tuples = []
 for topic, msg, time in bag.read_messages(topics=("/imu/rpy", "imu/rpy")):
   time_yaw_tuples.append((time.to_sec(), msg.vector.z))
