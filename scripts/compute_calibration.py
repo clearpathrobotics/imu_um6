@@ -51,7 +51,7 @@ w = [1.0 / 30.0] * 30
 time_yaw.append(convolve(time_yaw[-1], w, 'same'))
 
 # remove sections of no movement.
-time_yaw_tuples_movement = [tup for tup in zip(*time_yaw) if abs(tup[-1]) > 0.01]
+time_yaw_tuples_movement = [tup for tup in zip(*time_yaw)] # if abs(tup[-1]) > 0.01]
 time_start = time_yaw_tuples_movement[50][0]
 time_end = time_yaw_tuples_movement[-50][0]
 
