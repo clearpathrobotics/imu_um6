@@ -25,7 +25,7 @@ class ImuRawMagCompassNode:
         rospy.Subscriber("imu/mag", Vector3Stamped, self._mag_cb)
         rospy.Subscriber("imu/data", Imu, self._imu_cb)
 
-        self.yaw_vals = zeros(rospy.get_param('~smoothing_samples', 5))
+        self.yaw_vals = zeros(rospy.get_param('~smoothing_samples', 10))
         self.yaw_index = 0
 
     def _mag_cb(self, data):
