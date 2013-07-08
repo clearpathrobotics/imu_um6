@@ -34,7 +34,7 @@ class ImuRawMagCompassNode:
         data.vector.z -= self.mag_zero_z
 
         # Fixed for now. Later may determine up-vector from accelerometer.
-        self.yaw_vals[self.yaw_index] = atan2(data.vector.x, -data.vector.y)
+        self.yaw_vals[self.yaw_index] = -atan2(data.vector.y, -data.vector.x)
         self.yaw_index += 1
         if self.yaw_index >= len(self.yaw_vals):
           self.yaw_index = 0
