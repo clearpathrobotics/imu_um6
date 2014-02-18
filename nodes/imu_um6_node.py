@@ -35,7 +35,7 @@ class ImuUm6Node(object):
         self.frame_id = rospy.get_param('~frame_id', "/imu")
         self.throttle_rate = rospy.get_param('~throttle_rate', 5000)
         self.reset_mag = rospy.get_param('~reset_mag', False)
-        self.reset_accel = rospy.get_param('~reset_accel', True)
+        self.reset_accel = rospy.get_param('~reset_accel', False)
         self.mag_zero_x = rospy.get_param('~mag_zero_x', False)
         self.mag_zero_y = rospy.get_param('~mag_zero_y', False)
         self.mag_zero_z = rospy.get_param('~mag_zero_z', False)
@@ -78,7 +78,7 @@ class ImuUm6Node(object):
             self.driver = Um6Drv(self.port, dataMask, self.um6_data_cb)
             
             self.received = -1
-            cmd_seq = [Um6Drv.CMD_ZERO_GYROS, Um6Drv.CMD_RESET_EKF]
+            cmd_seq = [Um6Drv.CMD_ZERO_GYROS]
             if self.reset_mag:
                 cmd_seq.append(Um6Drv.CMD_SET_MAG_REF)
             if self.reset_accel:
@@ -201,17 +201,17 @@ class ImuUm6Node(object):
         if self.rpy_pub.get_num_connections() != 0:
 
           self.rpy_data.header = self.imu_data.header
-          self.rpy_data.vector.x = math.radians(data['DATA_ROLL_PITCH_YAW'][0])
-          self.rpy_data.vector.y = math.radians(data['DATA_ROLL_PITCH_YAW'][1])
-          self.rpy_data.vector.z = math.radians(data['DATA_ROLL_PITCH_YAW'][2])
+          self.rpy_data.vector.x = math.radians(data['DATA_ROLL_PITCH_YAW'][1])
+          self.rpy_data.vector.y = math.radians(data['DATA_ROLL_PITCH_YAW'][0])
+          self.rpy_data.vector.z = -math.radians(data['DATA_ROLL_PITCH_YAW'][2])
           self.rpy_pub.publish(self.rpy_data)
           
         if self.mag_pub.get_num_connections() != 0:
 
           self.mag_data.header = self.imu_data.header
-          self.mag_data.vector.x = data['DATA_MAGNETOMETER'][0]
-          self.mag_data.vector.y = data['DATA_MAGNETOMETER'][1]
-          self.mag_data.vector.z = data['DATA_MAGNETOMETER'][2]
+          self.mag_data.vector.x = data['DATA_MAGNETOMETER'][1]
+          self.mag_data.vector.y = data['DATA_MAGNETOMETER'][0]
+          self.mag_data.vector.z = -data['DATA_MAGNETOMETER'][2]
           self.mag_pub.publish(self.mag_data)
 
 if __name__ == '__main__':
